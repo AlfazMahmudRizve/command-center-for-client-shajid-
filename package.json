@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node scripts/build-extension.js",
+    "build": "next build && node scripts/create-icons.js && node scripts/build-sidebar.js && node scripts/build-extension.js",
     "start": "next start",
     "lint": "next lint"
   },
@@ -22,6 +22,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "esbuild": "^0.27.2",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
     "postcss": "^8",
