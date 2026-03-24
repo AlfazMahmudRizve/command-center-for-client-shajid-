@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { siteConfig, LinkBox, LinkItem } from "../../config/site-config";
+import { siteConfig } from "../../config/site-config";
+import type { LinkBox, LinkItem } from "../../config/site-config";
 import { ExternalLink } from "lucide-react";
 
 // Minimal styles injected into Shadow DOM
@@ -178,6 +179,7 @@ export function SidebarUI() {
   const [open, setOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const [boxes, setBoxes] = useState<LinkBox[]>([]);
 
   // Double Shift Logic
   const lastShiftRef = React.useRef<number>(0);
@@ -199,22 +201,45 @@ export function SidebarUI() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Todo Sync Logic (Chrome Storage vs LocalStorage)
+  // Todo & Links Sync Logic (Chrome Storage vs LocalStorage)
   React.useEffect(() => {
-    // Try to load from chrome.storage first (shared with extension pages)
-    // @ts-expect-error - chrome is defined in extension context
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      // @ts-expect-error - chrome.storage.local is valid in extension
-      chrome.storage.local.get(['sheriff-tasks'], (result) => {
-        if (result['sheriff-tasks']) {
-          setTasks(result['sheriff-tasks']);
+    const STORAGE_KEY = "sheriff-custom-links";
+    const TASKS_KEY = "sheriff-tasks";
+
+    const loadData = () => {
+      // @ts-expect-error - chrome is defined in extension context
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        // @ts-expect-error - chrome.storage.local is valid
+        chrome.storage.local.get([TASKS_KEY, STORAGE_KEY], (result) => {
+          if (result[TASKS_KEY]) setTasks(result[TASKS_KEY]);
+          if (result[STORAGE_KEY]) {
+            setBoxes(result[STORAGE_KEY]);
+          } else {
+            setBoxes(siteConfig.boxes);
+          }
+        });
+      } else {
+        const savedTasks = localStorage.getItem(TASKS_KEY);
+        if (savedTasks) setTasks(JSON.parse(savedTasks));
+
+        const savedLinks = localStorage.getItem(STORAGE_KEY);
+        if (savedLinks) {
+          try {
+            setBoxes(JSON.parse(savedLinks));
+          } catch {
+            setBoxes(siteConfig.boxes);
+          }
+        } else {
+          setBoxes(siteConfig.boxes);
         }
-      });
-    } else {
-      // Fallback for dev mode
-      const saved = localStorage.getItem("sheriff-tasks");
-      if (saved) setTasks(JSON.parse(saved));
-    }
+      }
+    };
+
+    loadData();
+
+    // Listen for storage changes to sync in real-time if possible
+    // Only works between extension contexts or with custom events
+    // For now we load on mount, but we could add a listener
   }, []);
 
   const saveTasks = (newTasks: Task[]) => {
@@ -256,7 +281,7 @@ export function SidebarUI() {
                   No tasks. Double shift to focus!
                 </div>
               )}
-              {tasks.map(task => (
+              {tasks.map((task: Task) => (
                 <div key={task.id} className={`todo-item ${task.completed ? 'completed' : ''}`} onClick={() => toggleTask(task.id)}>
                   <div className="todo-checkbox">
                     {task.completed && <div style={{ width: 8, height: 8, background: 'black', borderRadius: 2 }}></div>}
@@ -277,7 +302,7 @@ export function SidebarUI() {
         </div>
 
         {/* Link Boxes */}
-        {siteConfig.boxes.map((box: LinkBox) => (
+        {boxes.map((box: LinkBox) => (
           <div key={box.id}>
             <div className="section-title">{box.title}</div>
             <div className="link-grid">
