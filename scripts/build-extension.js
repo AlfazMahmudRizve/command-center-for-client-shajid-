@@ -83,6 +83,16 @@ async function main() {
     });
 
     console.log('Build patch complete.');
+
+    // 3. Remove any files or folders in outDir that start with '_' to fix Chrome extension loading errors
+    const rootFiles = fs.readdirSync(outDir);
+    rootFiles.forEach(file => {
+        if (file.startsWith('_')) {
+            const filepath = path.join(outDir, file);
+            fs.rmSync(filepath, { recursive: true, force: true });
+            console.log(`Deleted system file: ${file}`);
+        }
+    });
 }
 
 function getAllFiles(dirPath, arrayOfFiles) {
